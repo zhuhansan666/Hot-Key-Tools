@@ -20,27 +20,6 @@ class Hooker:
     #         :return: Dict[str, Dict[str, str]]
     #     """
     #     return self.__events_dict
-    def reload_treeView(self, treeView):
-        t = Thread(target=lambda: self.__reload_treeView(treeView), daemon=True)
-        t.start()
-
-    def __reload_treeView(self, treeView):
-        self.__format_events()
-        for v in self.__format_events_list:
-            treeView.insert("", END, value=v)
-
-    def __format_events(self):
-        self.__format_events_list = []
-        for k, v in self.__string_events_dict.items():
-            func_type = v.get("type", "code")
-            if func_type == "start":
-                mode = "打开"
-            elif func_type == "cmd":
-                mode = "命令"
-            else:
-                mode = "源码"
-            info = v.get("info", "")
-            self.__format_events_list.append((k, mode, info))
 
     def __init__(self, set_event_dict: Dict[str, Dict[str, str]]):
         self.__file_tools = FileTools()
@@ -48,9 +27,10 @@ class Hooker:
 
         self.old_event = None  # keyboard event 类型
         self.__now_events_list = []
+        self.__now_keys_dict = {'up': [], 'down': []}
         self.__events_dict = {}
         self.__string_events_dict = set_event_dict.copy()
-        self.__format_events_list = []
+        self.__yn_new_hooker = True
         for key_ in set_event_dict:
             self.__events_dict[self.__key_str_to_param(key_)] = set_event_dict[key_]
 
@@ -111,12 +91,44 @@ class Hooker:
                 self.__now_events_list.clear()
             self.old_event = event
 
+    def __events2hot_key(self, event: keyboard.KeyboardEvent):
+        if event != self.old_event:
+            self.__now_events_list.append(event)
+            for e in self.__now_events_list:
+                if e.name not in self.__now_keys_dict['down'] or e.name not in self.__now_keys_dict['up']:
+                    if e.event_type == 'down':
+                        self.__now_keys_dict['down'].append(e.name)
+                    else:
+                        self.__now_keys_dict['up'].append(e.name)
+            self.__now_events_list.clear()
+        self.old_event = event
+
+    def get_now_keys(self) -> dict:
+        return self.__now_keys_dict
+
     # def hook(self, sleep: Union[float, int] = 0.1):
     #     while True:
     #         keyboard.hook(callback=self.callback)
     #         time.sleep(sleep)
-    def hook(self):
-        keyboard.hook(callback=self.callback)
+    def hook_keys(self):
+        """
+        hook_events() 后不可hook_keys()
+        """
+        if self.__yn_new_hooker:
+            keyboard.hook(callback=self.callback)
+            self.__yn_new_hooker = False
+        else:
+            raise '已创建hooker,不可再次创建'
+
+    def hook_events(self):
+        """
+        hook_keys() 后不可hook_events()
+        """
+        if self.__yn_new_hooker:
+            keyboard.hook(callback=self.__events2hot_key)
+            self.__yn_new_hooker = False
+        else:
+            raise '已创建hooker,不可再次创建'
 
 
 if __name__ == '__main__':
@@ -125,4 +137,7 @@ if __name__ == '__main__':
     }
 
     hooker = Hooker(event_dict)
-    # hooker.hook()
+    hooker.hook_events()
+    while True:
+        print(hooker.get_now_keys())
+        time.sleep(0.1)

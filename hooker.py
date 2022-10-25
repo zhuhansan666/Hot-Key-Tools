@@ -1,25 +1,14 @@
 from os import startfile, path
-from typing import Union, Dict
-# import ttkbootstrap as ttk
-
-from threading import Thread
-from ttkbootstrap.constants import END
+from typing import Dict
 import keyboard
 import time
 from subprocess import run
-
+import sys
 from g import app_config
 from Tools import FileTools
 
 
 class Hooker:
-    # @property
-    # def events_dict(self):
-    #     """
-    #         获取当前的所有事件 (加载到gui)
-    #         :return: Dict[str, Dict[str, str]]
-    #     """
-    #     return self.__events_dict
 
     def __init__(self, set_event_dict: Dict[str, Dict[str, str]]):
         self.__file_tools = FileTools()
@@ -55,21 +44,12 @@ class Hooker:
         info = run_info['info']
 
         if info_type == 'start':
-            if " " in info.strip().rstrip():
-                try:
-                    startfile(info, operation='start')
-                except Exception as e:
-                    pass
-            else:
-                run(f"start \"{info}\"rr", shell=True)
+            startfile(info, operation='open')
         elif info_type == 'cmd':
-            filename = path.join(self.__app_config.cmd_temppath, "temp.bat")
-            self.__file_tools.create_file(filename, encode="ANSI",
-                                          def_info=f"@ECHO OFF\ntitle \n{info}\npause\n",
-                                          cover_file=True)
-            run(f"start cmd /c {filename}", shell=True)
-        # else:
-        #     run(f"start ./Exec/dist/Exec/Exec.exe \"{info}\"", shell=True)
+            if sys.platform[:3] == 'win':
+                run(f"python EXEC.py -S {info}", shell=True)
+            elif sys.platform[:3] == 'lin':
+                run(f"python3 EXEC.py -S {info}", shell=True)
 
     def callback(self, event):
         if event != self.old_event:
@@ -106,10 +86,6 @@ class Hooker:
     def get_now_keys(self) -> dict:
         return self.__now_keys_dict
 
-    # def hook(self, sleep: Union[float, int] = 0.1):
-    #     while True:
-    #         keyboard.hook(callback=self.callback)
-    #         time.sleep(sleep)
     def hook_keys(self):
         """
         hook_events() 后不可hook_keys()
@@ -137,7 +113,6 @@ if __name__ == '__main__':
     }
 
     hooker = Hooker(event_dict)
-    hooker.hook_events()
+    hooker.hook_keys()
     while True:
-        print(hooker.get_now_keys())
         time.sleep(0.1)

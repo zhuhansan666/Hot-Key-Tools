@@ -5,7 +5,6 @@ from ttkbootstrap.constants import *
 from tkinter import filedialog as tkf
 from threading import Thread
 from typing import Union, Dict
-from tkinter import messagebox
 from time import time, sleep
 import logging as log_out
 from hooker import Hooker
@@ -16,7 +15,7 @@ log_out.basicConfig(level=log_out.DEBUG, style='{',  # filename='./DEBUG.LOG',
                     \n\tfrom {funcName}() line({lineno}) {levelname}: {message}',
                     datefmt='%Y-%m-%d %H:%M:%S')
 loger = log_out.getLogger('GUI-DEBUG')
-loger.debug('2555555555')
+loger.debug('测试 DEBUG LINE(18)')
 
 
 # root = ttk.Window(themename="superhero")
@@ -129,7 +128,7 @@ class Settings(ttk.Window):
         self.find_button = ttk.Button(
             master=cmd_control, text='查找热键', command=self.__find, width=10, style='button_find.TButton')
         self.re_button = ttk.Button(
-            master=cmd_control, text='修改热键', command=self.__find, width=10, style='button_not.TButton')
+            master=cmd_control, text='修改热键', command=self.__revise, width=10, style='button_not.TButton')
         self.del_button = ttk.Button(
             master=cmd_control, text='删除热键', command=self.__del, width=10, style='button_not.TButton')
 
@@ -147,7 +146,66 @@ class Settings(ttk.Window):
         self.protocol("WM_DELETE_WINDOW", self.exit)  # tk监听窗口关闭事件
 
     @staticmethod
-    def add_ui() -> Union[Dict, None]:
+    def __get_cmd() -> str:
+        """
+        获取命令
+        :return: 获取的命令 [str]
+        """
+        __cmd = ''
+
+        def __run_ui():
+            nonlocal __cmd
+
+            def __ok():
+                nonlocal __cmd
+                __cmd = __ent.get()
+                __add_win.quit()
+                __add_win.destroy()
+
+            __add_win = ttk.Window()
+            __add_win.geometry('300x200')
+            __add_win.title('HotLeyTools')
+            __add_win.resizable(False, False)
+            ttk.Label(__add_win, text="请输入命令").pack()
+            __ent = ttk.Entry(master=__add_win)
+            __ent.pack()
+            ttk.Button(__add_win, text="确认", command=__ok).pack(side=RIGHT, padx=10)
+            __add_win.mainloop()
+
+        __run_ui()
+        return __cmd
+
+    def __add(self):
+        hot_key_dict = self.add_ui()
+        if hot_key_dict is not None:
+            for key, type_info in hot_key_dict.items():
+                self.__events[key] = type_info
+            # 通过获得的热键字典 添加热键至self.__events
+            self.__config.write()
+            print(self.__get_focusing(self.__focusing))
+            self.reload_treeview(self.__treeview)
+
+    def __find(self):
+        ...
+        self.__treeview.selection_set('1')
+
+    def __revise(self):
+        ...
+        if not self.__yn_button_re:
+            now_focus_key = self.__get_focusing(self.__focusing)
+            new_event = self.__re_mode(now_focus_key, self.__events)
+            self.__events = new_event
+            self.__config.write()
+            self.reload_treeview(self.__treeview)
+
+    def __del(self):
+        ...
+        if not self.__yn_button_re:
+            del self.__events[self.__get_focusing(self.__focusing)]
+            self.__config.write()
+            self.reload_treeview(self.__treeview)
+
+    def add_ui(self) -> Union[Dict, None]:
         """
         添加热键的UI窗口函数
         :return :UI获得的新增热键 [dict]
@@ -158,130 +216,17 @@ class Settings(ttk.Window):
         # cmd = None
         info = None
 
-        def __get_key_str() -> str:
-            """
-            获取热键
-            :return: 获取的热键 [str]
-            """
-            __key = ''
-
-            def __run_ui():
-                """获取热键的UI"""
-                nonlocal __key
-
-                def __get_keys(e):
-                    nonlocal __key
-                    __keys_d = __hooker.get_now_keys()
-                    __key = '+'.join(__keys_d['down'])
-                    __msg_label.config(text=__key)
-
-                def __ok():
-                    __add_win.quit()
-                    __add_win.destroy()
-
-                def __focus_set(e) -> None:
-                    __msg.config(text='添加热键\n请点击按键以录入热键')
-
-                __add_win = ttk.Window()
-                __add_win.geometry('300x200')
-                __add_win.title('HotLeyTools')
-                __add_win.resizable(False, False)
-                __msg = ttk.Label(__add_win, text="添加热键\n请点击此窗口")
-                __msg.pack()
-                __msg_label = ttk.Label(__add_win, text="")
-                __msg_label.pack()
-                __ok_check = ttk.Frame(__add_win)
-                ttk.Button(__ok_check, text="确认", command=__ok).pack(side=LEFT)
-                ttk.Button(__ok_check, text="取消", command=__ok).pack(side=LEFT)
-                __ok_check.pack(pady=20)
-                __hooker = Hooker({})
-                __hooker.hook_events()
-                __add_win.bind('<Any-Key>', __get_keys)
-                __add_win.bind('<Button-1>', __focus_set)
-                __add_win.mainloop()
-
-            __run_ui()
-            return __key
-
-        def __get_mode() -> str:
-            """
-            获取模式
-            :return: 获取的模式 [str]
-            """
-            __mode = ''
-
-            def __run_ui():
-                nonlocal __mode
-
-                def __set_mode_start():
-                    nonlocal __mode
-                    __mode = 'start'
-                    __ok()
-
-                def __set_mode_cmd():
-                    nonlocal __mode
-                    __mode = 'cmd'
-                    __ok()
-
-                def __ok():
-                    __add_win.quit()
-                    __add_win.destroy()
-
-                __add_win = ttk.Window()
-                __add_win.geometry('300x200')
-                __add_win.title('HotLeyTools')
-                __add_win.resizable(False, False)
-                ttk.Label(__add_win, text="请选择模式").pack()
-                __ok_check = ttk.Frame(__add_win)
-                ttk.Button(__ok_check, text="打开", command=__set_mode_start).pack(side=LEFT)
-                ttk.Button(__ok_check, text="命令", command=__set_mode_cmd).pack(side=LEFT)
-                __ok_check.pack(pady=20)
-                ttk.Button(__add_win, text="取消", command=__ok).pack(side=RIGHT, padx=10)
-                __add_win.mainloop()
-
-            __run_ui()
-            return __mode
-
-        def __get_cmd():
-            """
-            获取命令
-            :return: 获取的命令 [str]
-            """
-            __cmd = ''
-
-            def __run_ui():
-                nonlocal __cmd
-
-                def __ok():
-                    nonlocal __cmd
-                    __cmd = __ent.get()
-                    __add_win.quit()
-                    __add_win.destroy()
-
-                __add_win = ttk.Window()
-                __add_win.geometry('300x200')
-                __add_win.title('HotLeyTools')
-                __add_win.resizable(False, False)
-                ttk.Label(__add_win, text="请输入命令").pack()
-                __ent = ttk.Entry(master=__add_win)
-                __ent.pack()
-                ttk.Button(__add_win, text="确认", command=__ok).pack(side=RIGHT, padx=10)
-                __add_win.mainloop()
-
-            __run_ui()
-            return __cmd
-
-        str_key = __get_key_str()
+        str_key = self.__get_key_str()
         loger.info(f"str_key: {str_key}")
         if str_key != '':
-            str_mode = __get_mode()
+            str_mode = self.__get_mode()
             loger.info(f"str_mode: {str_mode}")
             if str_mode != '':
                 if str_mode == 'start':
                     start_file = tkf.askopenfilename(title='请选择打开的文件')  # 获取要打开的文件路径
                     info = start_file
                 elif str_mode == 'cmd':
-                    cmd = __get_cmd()
+                    cmd = self.__get_cmd()
                     info = cmd
                 return {str_key: {'type': str_mode, 'info': info}}
         else:
@@ -291,33 +236,151 @@ class Settings(ttk.Window):
         # 录入快捷键 询问功能（创建功能选项卡）
         # 选择文件打开 : 创建选项文件窗口 / cmd 命令 输入文字窗口
 
-    def __add(self):
-        hot_key_dict = self.add_ui()
-        for key, type_info in hot_key_dict.items():
-            self.__events[key] = type_info
-        # 通过获得的热键字典 添加热键至self.__events
-        self.__config.write()
-        print(self.__get_focusing(self.__focusing))
-        self.reload_treeview(self.__treeview)
+    @staticmethod
+    def __get_key_str() -> str:
+        """
+        获取热键的UI
+        :return: 获取的热键 [str]
+        """
+        __key = ''
 
-    def __find(self):
-        ...
-        self.reload_treeview(self.__treeview)
+        def __run_ui():
+            """获取热键的UI"""
+            nonlocal __key
 
-    def __revise(self):
-        ...
-        if self.__yn_button_re:
-            return None
-        self.__config.write()
-        self.reload_treeview(self.__treeview)
+            def __get_keys(e):
+                nonlocal __key
+                __keys_d = __hooker.get_now_keys()
+                __key = '+'.join(__keys_d['down'])
+                __msg_label.config(text=__key)
 
-    def __del(self):
-        ...
-        if self.__yn_button_re:
-            return None
-        del self.__events[self.__get_focusing(self.__focusing)]
-        self.__config.write()
-        self.reload_treeview(self.__treeview)
+            def __ok():
+                __add_win.quit()
+                __add_win.destroy()
+
+            def __focus_set(e) -> None:
+                __msg.config(text='添加热键\n请点击按键以录入热键')
+
+            __add_win = ttk.Window()
+            __add_win.geometry('300x200')
+            __add_win.title('HotLeyTools')
+            __add_win.resizable(False, False)
+            __msg = ttk.Label(__add_win, text="添加热键\n请点击此窗口")
+            __msg.pack()
+            __msg_label = ttk.Label(__add_win, text="")
+            __msg_label.pack()
+            __ok_check = ttk.Frame(__add_win)
+            ttk.Button(__ok_check, text="确认", command=__ok).pack(side=LEFT)
+            ttk.Button(__ok_check, text="取消", command=__ok).pack(side=LEFT)
+            __ok_check.pack(pady=20)
+            __hooker = Hooker({})
+            __hooker.hook_events()
+            __add_win.bind('<Any-Key>', __get_keys)
+            __add_win.bind('<Button-1>', __focus_set)
+            __add_win.mainloop()
+
+        __run_ui()
+        return __key
+
+    @staticmethod
+    def __get_mode() -> str:
+        """
+        获取模式的UI
+        :return: 获取的模式 [str]
+        """
+        __mode = ''
+
+        def __run_ui():
+            nonlocal __mode
+
+            def __set_mode_start():
+                nonlocal __mode
+                __mode = 'start'
+                __ok()
+
+            def __set_mode_cmd():
+                nonlocal __mode
+                __mode = 'cmd'
+                __ok()
+
+            def __ok():
+                __add_win.quit()
+                __add_win.destroy()
+
+            __add_win = ttk.Window()
+            __add_win.geometry('300x200')
+            __add_win.title('HotLeyTools')
+            __add_win.resizable(False, False)
+            ttk.Label(__add_win, text="请选择模式").pack()
+            __ok_check = ttk.Frame(__add_win)
+            ttk.Button(__ok_check, text="打开", command=__set_mode_start).pack(side=LEFT)
+            ttk.Button(__ok_check, text="命令", command=__set_mode_cmd).pack(side=LEFT)
+            __ok_check.pack(pady=20)
+            ttk.Button(__add_win, text="取消", command=__ok).pack(side=RIGHT, padx=10)
+            __add_win.mainloop()
+
+        __run_ui()
+        return __mode
+
+    def __re_mode(self, now_focus_key: str, events: dict) -> dict:
+        """
+        修改模式的UI
+        :param now_focus_key:现在正在选择的想要的热键
+        :param events:当前的热键字典
+        :return:修改后的字典
+        """
+
+        def __ask_ui():
+            def __re_key():
+                __new_key = self.__get_key_str()
+                __old_key = now_focus_key
+                if __new_key != '':
+                    __values = events[__old_key]
+                    del events[__old_key]
+                    events[__new_key] = __values
+                __ok()
+
+            def __re_mode():
+                __new_mode = self.__get_mode()
+                if __new_mode != '':
+                    events[now_focus_key]['type'] = __new_mode
+                __ok()
+
+            def __re_info():
+                __mode = self.__get_mode()
+                loger.debug(f'__mode : {__mode}')
+                if __mode == 'cmd':
+                    __cmd = self.__get_cmd()
+                    if __cmd != '':
+                        loger.debug(f'__cmd : {__cmd}')
+                        events[now_focus_key]['info'] = __cmd
+                        loger.debug(f'events : {events}')
+
+                elif __mode == 'start':
+                    new_start_info = tkf.askopenfilename(title='请选择打开的文件')
+                    if new_start_info != '':
+                        events[now_focus_key]['info'] = new_start_info
+                __ok()
+
+            def __ok():
+                __add_win.quit()
+                __add_win.destroy()
+
+            __add_win = ttk.Window()
+            __add_win.geometry('400x200')
+            __add_win.title('HotLeyTools')
+            __add_win.resizable(False, False)
+            ttk.Label(__add_win, text="请选择要修改的数据类型").pack()
+            __frame = ttk.Frame(__add_win)
+            ttk.Button(__frame, text="热键", command=__re_key).pack(side=LEFT, ipady=10)
+            ttk.Button(__frame, text="类型", command=__re_mode).pack(side=LEFT, ipady=10)
+            ttk.Button(__frame, text="指令", command=__re_info).pack(side=LEFT, ipady=10)
+            __frame.pack()
+            ttk.Button(__add_win, text="取消", command=__ok).pack(side=RIGHT, ipady=10)
+            __add_win.mainloop()
+
+        __ask_ui()
+        return events
 
     @staticmethod
     def __event_dict2tuple(events_dict):
@@ -346,10 +409,8 @@ class Settings(ttk.Window):
 
     def __reload_treeview(self, treeview: ttk.Treeview):
         self.__main_obj.reset(self.__events)
-        loger.debug(f'self.__events : {self.__events}')
         self.treeview_clear(self.__treeview)
         events_list = self.__event_dict2tuple(self.__events)
-        loger.debug(f'events_list: {events_list}')
         for v, i in zip(events_list, range(len(events_list))):
             treeview.insert("", END, values=v, iid=i)
 

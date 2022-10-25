@@ -57,11 +57,11 @@ class Hooker:
         if info_type == 'start':
             if " " in info.strip().rstrip():
                 try:
-                    startfile(info)
+                    startfile(info, operation='start')
                 except Exception as e:
                     pass
             else:
-                run(f"start \"{info}\"", shell=True)
+                run(f"start \"{info}\"rr", shell=True)
         elif info_type == 'cmd':
             filename = path.join(self.__app_config.cmd_temppath, "temp.bat")
             self.__file_tools.create_file(filename, encode="ANSI",

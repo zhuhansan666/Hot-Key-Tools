@@ -1,3 +1,4 @@
+import os.path
 import sys
 
 import ttkbootstrap as ttk
@@ -16,17 +17,6 @@ log_out.basicConfig(level=log_out.DEBUG, style='{',  # filename='./DEBUG.LOG',
                     datefmt='%Y-%m-%d %H:%M:%S')
 loger = log_out.getLogger('GUI-DEBUG')
 loger.debug('测试 DEBUG LINE(18)')
-
-
-# root = ttk.Window(themename="superhero")
-#
-# b1 = ttk.Button(root, text="Submit", bootstyle="success")
-# b1.pack(side=LEFT, padx=5, pady=10)
-#
-# b2 = ttk.Button(root, text="Submit", bootstyle="info-outline")
-# b2.pack(side=LEFT, padx=5, pady=10)
-#
-# root.mainloop()
 
 
 class Settings(ttk.Window):
@@ -186,20 +176,18 @@ class Settings(ttk.Window):
             self.reload_treeview(self.__treeview)
 
     def __find(self):
-        ...
-        self.__treeview.selection_set('1')
+        list_for_find = self.__get_find(self.__events)
+        self.__treeview.selection_set(list_for_find)
 
     def __revise(self):
-        ...
         if not self.__yn_button_re:
             now_focus_key = self.__get_focusing(self.__focusing)
-            new_event = self.__re_mode(now_focus_key, self.__events)
+            new_event = self.__get_revise(now_focus_key, self.__events)
             self.__events = new_event
             self.__config.write()
             self.reload_treeview(self.__treeview)
 
     def __del(self):
-        ...
         if not self.__yn_button_re:
             del self.__events[self.__get_focusing(self.__focusing)]
             self.__config.write()
@@ -223,7 +211,7 @@ class Settings(ttk.Window):
             loger.info(f"str_mode: {str_mode}")
             if str_mode != '':
                 if str_mode == 'start':
-                    start_file = tkf.askopenfilename(title='请选择打开的文件')  # 获取要打开的文件路径
+                    start_file = self.__get_file_path()  # 获取要打开的文件路径
                     info = start_file
                 elif str_mode == 'cmd':
                     cmd = self.__get_cmd()
@@ -235,6 +223,45 @@ class Settings(ttk.Window):
         # 检测快捷键，实时改变窗口
         # 录入快捷键 询问功能（创建功能选项卡）
         # 选择文件打开 : 创建选项文件窗口 / cmd 命令 输入文字窗口
+
+    @staticmethod
+    def __get_file_path() -> str:
+        """
+        获取文件路径
+        :return :文件路径
+        """
+        __path = ''
+
+        def __run_ui():
+            def __ask_path():
+                nonlocal __path
+                __path = tkf.askopenfilename(title='请选择打开的文件')
+                __ok()
+
+            def __enter_path():
+                nonlocal __path
+                ent_path = __ent.get()
+                if os.path.exists(ent_path) and os.path.isfile(ent_path):
+                    __path = os.path.abspath(__path.strip())
+                __ok()
+
+            def __ok():
+                __get_path_win.quit()
+                __get_path_win.destroy()
+
+            __get_path_win = ttk.Window()
+            __get_path_win.geometry('300x200')
+            __get_path_win.title('HotLeyTools')
+            __get_path_win.resizable(False, False)
+            ttk.Label(__get_path_win, text="请输入路径或者选择文件").pack()
+            ttk.Button(__get_path_win, text="选择文件", command=__ask_path).pack()
+            __ent = ttk.Entry(master=__get_path_win)
+            __ent.pack()
+            ttk.Button(__get_path_win, text="确认", command=__ok).pack(side=RIGHT, padx=10)
+            __get_path_win.mainloop()
+
+        __run_ui()
+        return __path
 
     @staticmethod
     def __get_key_str() -> str:
@@ -259,13 +286,13 @@ class Settings(ttk.Window):
                 __add_win.destroy()
 
             def __focus_set(e) -> None:
-                __msg.config(text='添加热键\n请点击按键以录入热键')
+                __msg.config(text='\n请点击按键以录入热键')
 
             __add_win = ttk.Window()
             __add_win.geometry('300x200')
             __add_win.title('HotLeyTools')
             __add_win.resizable(False, False)
-            __msg = ttk.Label(__add_win, text="添加热键\n请点击此窗口")
+            __msg = ttk.Label(__add_win, text="\n请点击此窗口")
             __msg.pack()
             __msg_label = ttk.Label(__add_win, text="")
             __msg_label.pack()
@@ -322,7 +349,71 @@ class Settings(ttk.Window):
         __run_ui()
         return __mode
 
-    def __re_mode(self, now_focus_key: str, events: dict) -> dict:
+    def __get_find(self, events: dict) -> list:
+        """
+        获取符合指定查找的值的iid
+        :return: 查找的值的iid [list]
+        """
+        __list_find = []
+        all_keys = list(events.keys())
+
+        def __run_ui():
+            nonlocal __list_find
+
+            def __find_key():
+                __key = self.__get_key_str()
+                for key in all_keys:
+                    if __key in key:
+                        __list_find.append(all_keys.index(key))
+                __ok()
+
+            def __find_mode():
+                __mode = self.__get_mode()
+                if __mode == 'start':
+                    for key in all_keys:
+                        if events[key]['type'] == 'start':
+                            __list_find.append(all_keys.index(key))
+                elif __mode == 'cmd':
+                    for key in all_keys:
+                        if events[key]['type'] == 'cmd':
+                            __list_find.append(all_keys.index(key))
+                __ok()
+
+            def __find_info():
+                __mode = self.__get_mode()
+                if __mode == 'start':
+                    __path = self.__get_file_path()
+                    for key in all_keys:
+                        if __path in events[key]['info']:
+                            __list_find.append(all_keys.index(key))
+                elif __mode == 'cmd':
+                    cmd = self.__get_cmd()
+                    for key in all_keys:
+                        if cmd in events[key]['info']:
+                            __list_find.append(all_keys.index(key))
+                __ok()
+
+            def __ok():
+                __find_win.quit()
+                __find_win.destroy()
+
+            __find_win = ttk.Window()
+            __find_win.geometry('300x200')
+            __find_win.title('HotLeyTools')
+            __find_win.resizable(False, False)
+            ttk.Label(__find_win, text="请选择要查找的值类型").pack()
+            __ok_check = ttk.Frame(__find_win)
+            ttk.Button(__ok_check, text="热键", command=__find_key).pack(side=LEFT)
+            ttk.Button(__ok_check, text="模式", command=__find_mode).pack(side=LEFT)
+            ttk.Button(__ok_check, text="指令", command=__find_info).pack(side=LEFT)
+            __ok_check.pack(pady=20)
+            ttk.Button(__find_win, text="取消", command=__ok).pack(side=RIGHT, padx=10)
+            __find_win.mainloop()
+
+        __run_ui()
+        return __list_find
+
+    def __get_revise(self, now_focus_key: str, events: dict) -> dict:
         """
         修改模式的UI
         :param now_focus_key:现在正在选择的想要的热键

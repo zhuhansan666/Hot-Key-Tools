@@ -1,4 +1,3 @@
-from io import StringIO
 import sys
 import locale
 import ttkbootstrap as ttk
